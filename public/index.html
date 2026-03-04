@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quiz & Earn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'outfit': ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#6366f1',
+                        'primary-dark': '#4f46e5',
+                        'accent': '#22d3ee',
+                        'surface': '#ffffff',
+                        'surface-alt': '#f8fafc',
+                        'text': '#1e293b',
+                        'text-muted': '#64748b',
+                        'success': '#10b981',
+                        'error': '#ef4444',
+                        'warning': '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        :root {
+            --bg-gradient-start: #e0e7ff;
+            --bg-gradient-end: #fef3c7;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --shadow-soft: 0 8px 32px rgba(99, 102, 241, 0.15);
+        }
+        
+        * {
+            -webkit-tap-highlight-color: transparent;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+        }
+        
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-soft);
+        }
+        
+        .glass-dark {
+            background: rgba(99, 102, 241, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        
+        /* Loading animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        .loader-ring {
+            animation: pulse-ring 1.5s ease-out infinite;
+        }
+        
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        
+        /* Timer ring */
+        .timer-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .timer-ring circle {
+            transition: stroke-dashoffset 1s linear;
+        }
+        
+        /* Button press effect */
+        .btn-press:active {
+            transform: scale(0.96);
+        }
+        
+        /* Screen transitions */
+        .screen {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .screen.hidden {
+            opacity: 0;
+            transform: translateY(20px);
+            pointer-events: none;
+            position: absolute;
+        }
+        
+        /* Toast */
+        .toast {
+            animation: slideIn 0.3s ease, slideOut 0.3s ease 2.7s forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        /* Option buttons */
+        .option-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .option-btn:not(:disabled):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
+        }
+        
+        .option-btn.correct {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            color: white !important;
+            border-color: transparent !important;
+        }
+        
+        .option-btn.wrong {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            color: white !important;
+            border-color: transparent !important;
+        }
+        
+        /* Navigation */
+        .nav-item {
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item.active {
+            color: #6366f1;
+        }
+        
+        .nav-item.active svg {
+            stroke: #6366f1;
+        }
+        
+        /* Balance badge pulse */
+        @keyframes badge-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+        }
+        
+        .balance-badge {
+            animation: badge-pulse 2s infinite;
+        }
+        
+        /* Success animation */
+        @keyframes success-bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .success-bounce {
+            animation: success-bounce 0.5s ease;
+        }
+        
+        /* Leaderboard item */
+        .leaderboard-item:nth-child(1) { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); }
+        .leaderboard-item:nth-child(2) { background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%); }
+        .leaderboard-item:nth-child(3) { background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); }
+    </style>
+</head>
+<body class="font-outfit">
+    <div id="app" class="min-h-screen min-h-[100dvh] relative">
+        
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-100 via-white to-amber-50">
+            <div class="relative">
+                <div class="w-24 h-24 rounded-full bg-primary/20 absolute inset-0 loader-ring"></div>
+                <div class="w-24 h-24 rounded-full glass flex items-center justify-center float-animation">
+                    <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <p class="mt-8 text-lg font-semibold text-text">লোড হচ্ছে...</p>
+            <p class="mt-2 text-sm text-text-muted">প্রস্তুত হন টাকা জেতার জন্য!</p>
+        </div>
+        
+        <!-- Force Join Screen -->
+        <div id="force-join-screen" class="fixed inset-0 z-40 flex flex-col items-center justify-center p-6 hidden">
+            <div class="glass rounded-3xl p-8 max-w-sm w-full text-center">
+                <div class="w-20 h-20 rounded-full bg-warning/20 flex items-center justify-center mx-auto mb-6">
+                    <svg class="w-10 h-10 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-text mb-2">চ্যানেলে জয়েন করুন</h2>
+                <p class="text-text-muted text-sm mb-6">অ্যাপ ব্যবহার করতে প্রয়োজনীয় চ্যানেলে জয়েন করুন</p>
+                <div id="force-channels-list" class="space-y-3 mb-6"></div>
+                <button id="verify-join-btn" class="w-full py-4 rounded-2xl bg-primary text-white font-semibold btn-press hover:bg-primary-dark transition-colors">
+                    ভেরিফাই করুন
+                </button>
+            </div>
+        </div>
+        
+        <!-- Banned Screen -->
+        <div id="banned-screen" class="fixed inset-0 z-40 flex flex-col items-center justify-center p-6 hidden">
+            <div class="glass rounded-3xl p-8 max-w-sm w-full text-center">
+                <div class="w-20 h-20 rounded-full bg-error/20 flex items-center justify-center mx-auto mb-6">
+                    <svg class="w-10 h-10 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-text mb-2">অ্যাকাউন্ট ব্যান করা হয়েছে</h2>
+                <p class="text-text-muted text-sm">আপনার অ্যাকাউন্ট অস্থায়ীভাবে ব্যান করা হয়েছে। বিস্তারিত জানতে সাপোর্টে যোগাযোগ করুন।</p>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div id="main-content" class="pb-24 hidden">
+            
+            <!-- Top Navigation -->
+            <header class="sticky top-0 z-30 glass border-b border-white/50">
+                <div class="flex items-center justify-between p-4">
+                    <div class="flex items-center gap-3">
+                        <div id="user-avatar" class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+                            <span class="text-primary font-bold text-lg" id="user-initial">U</span>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-text" id="user-name">User</p>
+                            <p class="text-xs text-text-muted">Quiz & Earn</p>
+                        </div>
+                    </div>
+                    <div id="balance-badge" class="balance-badge glass-dark px-4 py-2 rounded-full">
+                        <span class="text-white font-bold" id="user-balance">0.00</span>
+                        <span class="text-white/80 text-sm">৳</span>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Home Screen -->
+            <div id="home-screen" class="screen p-4">
+                <!-- Quiz Card -->
+                <div id="quiz-container" class="glass rounded-3xl p-6 mb-6">
+                    <!-- No Quiz State -->
+                    <div id="no-quiz-state" class="text-center py-8">
+                        <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-text mb-2">সব কুইজ শেষ!</h3>
+                        <p class="text-text-muted text-sm">নতুন কুইজ এর জন্য অপেক্ষা করুন অথবা রেফার করে ইনকাম করুন</p>
+                    </div>
+                    
+                    <!-- Quiz Content -->
+                    <div id="quiz-content" class="hidden">
+                        <!-- Timer -->
+                        <div class="flex justify-center mb-6">
+                            <div class="relative">
+                                <svg class="timer-ring w-20 h-20">
+                                    <circle cx="40" cy="40" r="36" stroke="#e2e8f0" stroke-width="6" fill="none"/>
+                                    <circle id="timer-circle" cx="40" cy="40" r="36" stroke="#6366f1" stroke-width="6" fill="none" 
+                                        stroke-dasharray="226.2" stroke-dashoffset="0" stroke-linecap="round"/>
+                                </svg>
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <span id="timer-text" class="text-2xl font-bold text-primary">15</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Reward Badge -->
+                        <div class="flex justify-center mb-4">
+                            <span class="px-3 py-1 rounded-full bg-success/20 text-success text-sm font-semibold">
+                                +<span id="quiz-reward">1.00</span>৳ জিতুন
+                            </span>
+                        </div>
+                        
+                        <!-- Question -->
+                        <h2 id="quiz-question" class="text-xl font-bold text-text text-center mb-6">Question loading...</h2>
+                        
+                        <!-- Options -->
+                        <div id="quiz-options" class="space-y-3"></div>
+                    </div>
+                    
+                    <!-- Quiz Loading State -->
+                    <div id="quiz-loading" class="hidden py-8">
+                        <div class="flex justify-center mb-4">
+                            <div class="w-16 h-16 rounded-2xl shimmer"></div>
+                        </div>
+                        <div class="h-4 w-3/4 mx-auto rounded shimmer mb-3"></div>
+                        <div class="space-y-2">
+                            <div class="h-12 rounded-2xl shimmer"></div>
+                            <div class="h-12 rounded-2xl shimmer"></div>
+                            <div class="h-12 rounded-2xl shimmer"></div>
+                            <div class="h-12 rounded-2xl shimmer"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <p class="text-2xl font-bold text-primary" id="stat-quizzes">0</p>
+                        <p class="text-xs text-text-muted">কুইজ খেলেছে</p>
+                    </div>
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <p class="text-2xl font-bold text-primary" id="stat-referrals">0</p>
+                        <p class="text-xs text-text-muted">রেফার করেছে</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Screen -->
+            <div id="profile-screen" class="screen p-4 hidden">
+                <!-- Profile Card -->
+                <div class="glass rounded-3xl p-6 mb-6 text-center">
+                    <div id="profile-avatar" class="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                        <span class="text-primary font-bold text-3xl" id="profile-initial">U</span>
+                    </div>
+                    <h2 id="profile-name" class="text-xl font-bold text-text mb-1">User Name</h2>
+                    <p id="profile-id" class="text-sm text-text-muted mb-4">ID: 123456789</p>
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <p class="text-xl font-bold text-primary" id="profile-balance">0.00৳</p>
+                            <p class="text-xs text-text-muted">ব্যালেন্স</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xl font-bold text-primary" id="profile-quizzes">0</p>
+                            <p class="text-xs text-text-muted">কুইজ</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-xl font-bold text-primary" id="profile-referrals">0</p>
+                            <p class="text-xs text-text-muted">রেফার</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Referral Section -->
+                <div class="glass rounded-3xl p-6 mb-6">
+                    <h3 class="font-bold text-text mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        রেফার করে ইনকাম করুন
+                    </h3>
+                    
+                    <div class="bg-surface-alt rounded-2xl p-4 mb-4">
+                        <p class="text-xs text-text-muted mb-2">আপনার রেফারেল লিংক</p>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="referral-link" readonly class="flex-1 bg-transparent text-sm text-text font-medium outline-none truncate">
+                            <button id="copy-referral-btn" class="px-3 py-2 rounded-xl bg-primary text-white text-sm font-semibold btn-press">
+                                কপি
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-text-muted">প্রতিটি রেফারে <span class="text-success font-semibold" id="referral-bonus">5.00৳</span> বোনাস!</p>
+                </div>
+                
+                <!-- Leaderboard -->
+                <div class="glass rounded-3xl p-6">
+                    <h3 class="font-bold text-text mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                        </svg>
+                        লিডারবোর্ড (টপ 10)
+                    </h3>
+                    
+                    <div id="leaderboard-list" class="space-y-2"></div>
+                </div>
+            </div>
+            
+            <!-- Withdraw Screen -->
+            <div id="withdraw-screen" class="screen p-4 hidden">
+                <div class="glass rounded-3xl p-6 mb-6">
+                    <h3 class="font-bold text-text mb-2 text-center">উইথড্র করুন</h3>
+                    <p class="text-text-muted text-sm text-center mb-6">বর্তমান ব্যালেন্স: <span class="text-primary font-bold" id="withdraw-balance">0.00৳</span></p>
+                    
+                    <!-- Method Selection -->
+                    <div class="mb-6">
+                        <label class="text-sm font-semibold text-text mb-3 block">পেমেন্ট মেথড</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="withdraw-method-btn glass rounded-2xl p-4 text-center btn-press border-2 border-transparent transition-all" data-method="bkash">
+                                <div class="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center mx-auto mb-2">
+                                    <span class="text-pink-600 font-bold text-sm">bKash</span>
+                                </div>
+                                <span class="text-sm font-medium text-text">bKash</span>
+                            </button>
+                            <button class="withdraw-method-btn glass rounded-2xl p-4 text-center btn-press border-2 border-transparent transition-all" data-method="nagad">
+                                <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-2">
+                                    <span class="text-orange-600 font-bold text-sm">Nagad</span>
+                                </div>
+                                <span class="text-sm font-medium text-text">Nagad</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Number Input -->
+                    <div class="mb-4">
+                        <label class="text-sm font-semibold text-text mb-2 block">মোবাইল নম্বর</label>
+                        <input type="tel" id="withdraw-number" placeholder="01XXXXXXXXX" 
+                            class="w-full px-4 py-4 rounded-2xl bg-surface-alt border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-text">
+                    </div>
+                    
+                    <!-- Amount Input -->
+                    <div class="mb-6">
+                        <label class="text-sm font-semibold text-text mb-2 block">পরিমাণ</label>
+                        <div class="relative">
+                            <input type="number" id="withdraw-amount" placeholder="0.00" 
+                                class="w-full px-4 py-4 rounded-2xl bg-surface-alt border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-text pr-12">
+                            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted font-semibold">৳</span>
+                        </div>
+                        <p class="text-xs text-text-muted mt-2">ন্যূনতম: <span id="min-withdraw">10.00</span>৳ | ফি: <span id="withdraw-fee">0.00</span>৳</p>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <button id="withdraw-submit-btn" class="w-full py-4 rounded-2xl bg-primary text-white font-semibold btn-press hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        উইথড্র রিকুয়েস্ট পাঠান
+                    </button>
+                </div>
+                
+                <!-- Withdraw History -->
+                <div class="glass rounded-3xl p-6">
+                    <h3 class="font-bold text-text mb-4">সাম্প্রতিক উইথড্র</h3>
+                    <div id="withdraw-history" class="space-y-3">
+                        <p class="text-center text-text-muted text-sm py-4">কোনো উইথড্র নেই</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Admin Screen -->
+            <div id="admin-screen" class="screen p-4 hidden">
+                <div class="glass rounded-3xl p-6 mb-6">
+                    <h3 class="font-bold text-xl text-text mb-6 flex items-center gap-2">
+                        <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        অ্যাডমিন প্যানেল
+                    </h3>
+                    
+                    <!-- Admin Tabs -->
+                    <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
+                        <button class="admin-tab-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold whitespace-nowrap" data-tab="dashboard">ড্যাশবোর্ড</button>
+                        <button class="admin-tab-btn px-4 py-2 rounded-xl bg-surface-alt text-text-muted text-sm font-semibold whitespace-nowrap" data-tab="users">ইউজার</button>
+                        <button class="admin-tab-btn px-4 py-2 rounded-xl bg-surface-alt text-text-muted text-sm font-semibold whitespace-nowrap" data-tab="quiz">কুইজ</button>
+                        <button class="admin-tab-btn px-4 py-2 rounded-xl bg-surface-alt text-text-muted text-sm font-semibold whitespace-nowrap" data-tab="withdraws">উইথড্র</button>
+                        <button class="admin-tab-btn px-4 py-2 rounded-xl bg-surface-alt text-text-muted text-sm font-semibold whitespace-nowrap" data-tab="settings">সেটিংস</button>
+                    </div>
+                    
+                    <!-- Dashboard Tab -->
+                    <div id="admin-dashboard" class="admin-tab-content">
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-primary/10 rounded-2xl p-4">
+                                <p class="text-2xl font-bold text-primary" id="admin-total-users">0</p>
+                                <p class="text-xs text-text-muted">মোট ইউজার</p>
+                            </div>
+                            <div class="bg-success/10 rounded-2xl p-4">
+                                <p class="text-2xl font-bold text-success" id="admin-total-balance">0.00৳</p>
+                                <p class="text-xs text-text-muted">ডিস্ট্রিবিউটেড</p>
+                            </div>
+                            <div class="bg-warning/10 rounded-2xl p-4">
+                                <p class="text-2xl font-bold text-warning" id="admin-pending-withdraws">0</p>
+                                <p class="text-xs text-text-muted">পেন্ডিং উইথড্র</p>
+                            </div>
+                            <div class="bg-error/10 rounded-2xl p-4">
+                                <p class="text-2xl font-bold text-error" id="admin-pending-amount">0.00৳</p>
+                                <p class="text-xs text-text-muted">পেন্ডিং এমাউন্ট</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Users Tab -->
+                    <div id="admin-users" class="admin-tab-content hidden">
+                        <div class="mb-4">
+                            <input type="text" id="admin-user-search" placeholder="ইউজার ID দিয়ে সার্চ করুন..." 
+                                class="w-full px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                        </div>
+                        <div id="admin-users-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                    </div>
+                    
+                    <!-- Quiz Tab -->
+                    <div id="admin-quiz" class="admin-tab-content hidden">
+                        <div class="mb-6">
+                            <h4 class="font-semibold text-text mb-4">নতুন কুইজ যোগ করুন</h4>
+                            <div class="space-y-3">
+                                <textarea id="new-quiz-question" placeholder="প্রশ্ন লিখুন..." 
+                                    class="w-full px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm resize-none h-20"></textarea>
+                                <input type="text" id="new-quiz-opt1" placeholder="অপশন 1" class="w-full px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                                <input type="text" id="new-quiz-opt2" placeholder="অপশন 2" class="w-full px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                                <input type="text" id="new-quiz-opt3" placeholder="অপশন 3" class="w-full px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                                <input type="text" id="new-quiz-opt4" placeholder="অপশন 4" class="w-full px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <select id="new-quiz-correct" class="px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                                        <option value="1">সঠিক: অপশন 1</option>
+                                        <option value="2">সঠিক: অপশন 2</option>
+                                        <option value="3">সঠিক: অপশন 3</option>
+                                        <option value="4">সঠিক: অপশন 4</option>
+                                    </select>
+                                    <input type="number" id="new-quiz-reward" placeholder="রিওয়ার্ড (৳)" value="1" class="px-4 py-3 rounded-xl bg-surface-alt border border-gray-200 focus:border-primary outline-none transition-all text-text text-sm">
+                                </div>
+                                <button id="add-quiz-btn" class="w-full py-3 rounded-xl bg-primary text-white font-semibold btn-press hover:bg-primary-dark transition-colors">
+                                    কুইজ যোগ করুন
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-semibold text-text mb-4">সকল কুইজ</h4>
+                            <div id="admin-quizzes-list" class="space-y-3 max-h-64 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Withdraws Tab -->
+                    <div id="admin-withdraws" class="admin-tab-content hidden">
+                        <div id="admin-withdraws-list" class="space-y-3 max-h-[500px] overflow-y-auto"></div>
+                    </div>
+                    
+                    <!-- Settings Tab -->
+                    <div id="admin-settings" class="admin-tab-content hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                <span class="text-sm font-medium text-text">ন্যূনতম উইথড্র</span>
+                                <input type="number" id="setting-min-withdraw" value="10" class="w-24 px-3 py-2 rounded-lg bg-white border border-gray-200 text-center text-sm">
+                            </div>
+                            <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                <span class="text-sm font-medium text-text">উইথড্র ফি</span>
+                                <input type="number" id="setting-withdraw-fee" value="0" class="w-24 px-3 py-2 rounded-lg bg-white border border-gray-200 text-center text-sm">
+                            </div>
+                            <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                <span class="text-sm font-medium text-text">রেফারেল বোনাস</span>
+                                <input type="number" id="setting-referral-bonus" value="5" class="w-24 px-3 py-2 rounded-lg bg-white border border-gray-200 text-center text-sm">
+                            </div>
+                            <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                <span class="text-sm font-medium text-text">কুইজ রিওয়ার্ড</span>
+                                <input type="number" id="setting-quiz-reward" value="1" class="w-24 px-3 py-2 rounded-lg bg-white border border-gray-200 text-center text-sm">
+                            </div>
+                            <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                <span class="text-sm font-medium text-text">কুইজ টাইমার (সেকেন্ড)</span>
+                                <input type="number" id="setting-quiz-timer" value="15" class="w-24 px-3 py-2 rounded-lg bg-white border border-gray-200 text-center text-sm">
+                            </div>
+                            
+                            <div class="pt-4 border-t border-gray-200">
+                                <h5 class="font-semibold text-text mb-3">টগল সেটিংস</h5>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                        <span class="text-sm font-medium text-text">কুইজ সক্রিয়</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="setting-quiz-enabled" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                        <span class="text-sm font-medium text-text">উইথড্র সক্রিয়</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="setting-withdraw-enabled" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                    <div class="flex items-center justify-between p-4 bg-surface-alt rounded-xl">
+                                        <span class="text-sm font-medium text-text">এডস সক্রিয়</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="setting-ads-enabled" class="sr-only peer" checked>
+                                            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button id="save-settings-btn" class="w-full py-3 rounded-xl bg-primary text-white font-semibold btn-press hover:bg-primary-dark transition-colors mt-4">
+                                সেটিংস সংরক্ষণ করুন
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom Navigation -->
+            <nav class="fixed bottom-0 left-0 right-0 glass border-t border-white/50 z-30">
+                <div class="flex items-center justify-around py-3">
+                    <button class="nav-item flex flex-col items-center gap-1 px-4 py-2 active" data-screen="home">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                        </svg>
+                        <span class="text-xs font-medium">হোম</span>
+                    </button>
+                    <button class="nav-item flex flex-col items-center gap-1 px-4 py-2" data-screen="profile">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span class="text-xs font-medium">প্রোফাইল</span>
+                    </button>
+                    <button class="nav-item flex flex-col items-center gap-1 px-4 py-2" data-screen="withdraw">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span class="text-xs font-medium">উইথড্র</span>
+                    </button>
+                    <button id="admin-nav-btn" class="nav-item flex flex-col items-center gap-1 px-4 py-2 hidden" data-screen="admin">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="text-xs font-medium">অ্যাডমিন</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+        
+        <!-- Toast Container -->
+        <div id="toast-container" class="fixed top-4 left-4 right-4 z-50 pointer-events-none"></div>
+        
+        <!-- Result Modal -->
+        <div id="result-modal" class="fixed inset-0 z-40 flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm hidden">
+            <div class="glass rounded-3xl p-8 max-w-sm w-full text-center">
+                <div id="result-icon" class="w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center"></div>
+                <h2 id="result-title" class="text-2xl font-bold mb-2"></h2>
+                <p id="result-message" class="text-text-muted mb-6"></p>
+                <button id="result-close-btn" class="w-full py-4 rounded-2xl bg-primary text-white font-semibold btn-press">
+                    পরবর্তী কুইজ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE = window.location.origin;
+        
+        // App State
+        const state = {
+            user: null,
+            isAdmin: false,
+            currentQuiz: null,
+            timerInterval: null,
+            timeLeft: 15,
+            selectedMethod: null,
+            settings: {}
+        };
+        
+        // Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        // Get init data
+        const initData = tg.initData;
+        
+        // DOM Elements
+        const elements = {
+            loadingScreen: document.getElementById('loading-screen'),
+            forceJoinScreen: document.getElementById('force-join-screen'),
+            bannedScreen: document.getElementById('banned-screen'),
+            mainContent: document.getElementById('main-content'),
+            toastContainer: document.getElementById('toast-container'),
+            resultModal: document.getElementById('result-modal')
+        };
+        
+        // Utility Functions
+        async function api(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Telegram-Init-Data': initData,
+                ...options.headers
+            };
+            
+            const response = await fetch(url, { ...options, headers });
+            
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || 'API Error');
+            }
+            
+            return response.json();
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-error' : 'bg-primary';
+            
+            toast.className = `toast ${bgColor} text-white px-4 py-3 rounded-xl mb-2 shadow-lg pointer-events-auto`;
+            toast.textContent = message;
+            
+            elements.toastContainer.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function formatNumber(num) {
+            return parseFloat(num || 0).toFixed(2);
+        }
+        
+        // Screen Navigation
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            
+            const targetScreen = document.getElementById(`${screenId}-screen`);
+            if (targetScreen) {
+                targetScreen.classList.remove('hidden');
+            }
+            
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.screen === screenId) {
+                    item.classList.add('active');
+                }
+            });
+        }
+        
+        // User Functions
+        async function loadUser() {
+            try {
+                const data = await api('/api/me');
+                
+                if (data.success) {
+                    state.user = data.user;
+                    state.isAdmin = data.is_admin;
+                    
+                    // Update UI
+                    updateUserUI();
+                    
+                    // Show admin nav if admin
+                    if (state.isAdmin) {
+                        document.getElementById('admin-nav-btn').classList.remove('hidden');
+                    }
+                    
+                    // Check if banned
+                    if (state.user.is_banned) {
+                        elements.bannedScreen.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    // Load quiz
+                    await loadQuiz();
+                    
+                    // Hide loading, show content
+                    elements.loadingScreen.classList.add('hidden');
+                    elements.mainContent.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Load user error:', error);
+                showToast('লোড হতে সমস্যা হয়েছে', 'error');
+                
+                // Still show content after delay
+                setTimeout(() => {
+                    elements.loadingScreen.classList.add('hidden');
+                    elements.mainContent.classList.remove('hidden');
+                }, 2000);
+            }
+        }
+        
+        function updateUserUI() {
+            if (!state.user) return;
+            
+            // Update name
+            document.getElementById('user-name').textContent = state.user.name || 'User';
+            document.getElementById('user-initial').textContent = (state.user.name || 'U')[0].toUpperCase();
+            document.getElementById('profile-name').textContent = state.user.name || 'User';
+            document.getElementById('profile-initial').textContent = (state.user.name || 'U')[0].toUpperCase();
+            
+            // Update ID
+            document.getElementById('profile-id').textContent = `ID: ${state.user.id}`;
+            
+            // Update balance
+            document.getElementById('user-balance').textContent = formatNumber(state.user.balance);
+            document.getElementById('profile-balance').textContent = `${formatNumber(state.user.balance)}৳`;
+            document.getElementById('withdraw-balance').textContent = `${formatNumber(state.user.balance)}৳`;
+            
+            // Update stats
+            document.getElementById('stat-quizzes').textContent = state.user.total_quiz_played || 0;
+            document.getElementById('stat-referrals').textContent = state.user.referral_count || 0;
+            document.getElementById('profile-quizzes').textContent = state.user.total_quiz_played || 0;
+            document.getElementById('profile-referrals').textContent = state.user.referral_count || 0;
+        }
+        
+        // Quiz Functions
+        async function loadQuiz() {
+            const quizContainer = document.getElementById('quiz-container');
+            const noQuizState = document.getElementById('no-quiz-state');
+            const quizContent = document.getElementById('quiz-content');
+            const quizLoading = document.getElementById('quiz-loading');
+            
+            // Show loading
+            noQuizState.classList.add('hidden');
+            quizContent.classList.add('hidden');
+            quizLoading.classList.remove('hidden');
+            
+            try {
+                const data = await api('/api/quiz/next');
+                
+                if (data.success && data.quiz) {
+                    state.currentQuiz = data.quiz;
+                    
+                    // Update quiz UI
+                    document.getElementById('quiz-question').textContent = data.quiz.question;
+                    document.getElementById('quiz-reward').textContent = formatNumber(data.quiz.reward);
+                    
+                    // Create options
+                    const optionsContainer = document.getElementById('quiz-options');
+                    optionsContainer.innerHTML = '';
+                    
+                    data.quiz.options.forEach((option, index) => {
+                        const btn = document.createElement('button');
+                        btn.className = 'option-btn w-full py-4 px-6 rounded-2xl glass text-left font-medium text-text btn-press border-2 border-transparent';
+                        btn.innerHTML = `
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 text-primary font-bold text-sm mr-3">${index + 1}</span>
+                            ${option}
+                        `;
+                        btn.dataset.option = index + 1;
+                        btn.addEventListener('click', () => selectAnswer(index + 1));
+                        optionsContainer.appendChild(btn);
+                    });
+                    
+                    // Show quiz content
+                    quizLoading.classList.add('hidden');
+                    quizContent.classList.remove('hidden');
+                    
+                    // Start timer
+                    state.timeLeft = data.quiz.timer;
+                    startTimer();
+                } else {
+                    // No quiz available
+                    quizLoading.classList.add('hidden');
+                    noQuizState.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Load quiz error:', error);
+                quizLoading.classList.add('hidden');
+                noQuizState.classList.remove('hidden');
+            }
+        }
+        
+        function startTimer() {
+            const timerCircle = document.getElementById('timer-circle');
+            const timerText = document.getElementById('timer-text');
+            const circumference = 226.2;
+            
+            clearInterval(state.timerInterval);
+            
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                
+                // Update text
+                timerText.textContent = state.timeLeft;
+                
+                // Update circle
+                const progress = state.timeLeft / state.currentQuiz.timer;
+                const offset = circumference * (1 - progress);
+                timerCircle.style.strokeDashoffset = offset;
+                
+                // Change color when low
+                if (state.timeLeft <= 5) {
+                    timerCircle.style.stroke = '#ef4444';
+                } else {
+                    timerCircle.style.stroke = '#6366f1';
+                }
+                
+                // Time up
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    selectAnswer(0); // 0 means time up
+                }
+            }, 1000);
+        }
+        
+        async function selectAnswer(option) {
+            if (!state.currentQuiz) return;
+            
+            clearInterval(state.timerInterval);
+            
+            // Disable all options
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.disabled = true;
+            });
+            
+            // Show selected
+            const selectedBtn = document.querySelector(`.option-btn[data-option="${option}"]`);
+            if (selectedBtn) {
+                selectedBtn.classList.add('wrong');
+            }
+            
+            try {
+                const result = await api('/api/quiz/answer', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        quiz_id: state.currentQuiz.id,
+                        answer: option
+                    })
+                });
+                
+                if (result.success) {
+                    // Update balance
+                    state.user.balance = result.new_balance;
+                    state.user.total_quiz_played = (state.user.total_quiz_played || 0) + 1;
+                    updateUserUI();
+                    
+                    // Show correct answer
+                    const correctBtn = document.querySelector(`.option-btn[data-option="${result.correct_option}"]`);
+                    if (correctBtn) {
+                        correctBtn.classList.remove('wrong');
+                        correctBtn.classList.add('correct');
+                    }
+                    
+                    // Show result modal
+                    showResultModal(result.is_correct, result.reward);
+                }
+            } catch (error) {
+                console.error('Answer error:', error);
+                showToast('উত্তর জমা দিতে সমস্যা হয়েছে', 'error');
+            }
+        }
+        
+        function showResultModal(isCorrect, reward) {
+            const modal = elements.resultModal;
+            const icon = document.getElementById('result-icon');
+            const title = document.getElementById('result-title');
+            const message = document.getElementById('result-message');
+            
+            if (isCorrect) {
+                icon.className = 'w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center bg-success/20';
+                icon.innerHTML = '<svg class="w-10 h-10 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+                title.textContent = 'সঠিক উত্তর!';
+                title.className = 'text-2xl font-bold mb-2 text-success';
+                message.textContent = `আপনি ${formatNumber(reward)}৳ জিতেছেন!`;
+            } else {
+                icon.className = 'w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center bg-error/20';
+                icon.innerHTML = '<svg class="w-10 h-10 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+                title.textContent = 'ভুল উত্তর!';
+                title.className = 'text-2xl font-bold mb-2 text-error';
+                message.textContent = 'পরের কুইজে ভালো করুন!';
+            }
+            
+            modal.classList.remove('hidden');
+        }
+        
+        // Profile Functions
+        async function loadProfile() {
+            try {
+                const data = await api('/api/profile');
+                
+                if (data.success) {
+                    // Update referral link
+                    document.getElementById('referral-link').value = data.referral_link;
+                    
+                    // Update referral bonus from settings
+                    const settings = await api('/api/settings').catch(() => null);
+                    if (settings && settings.settings) {
+                        document.getElementById('referral-bonus').textContent = `${formatNumber(settings.settings.referral_bonus || 5)}৳`;
+                        state.settings = settings.settings;
+                    }
+                    
+                    // Render leaderboard
+                    renderLeaderboard(data.leaderboard);
+                }
+            } catch (error) {
+                console.error('Load profile error:', error);
+            }
+        }
+        
+        function renderLeaderboard(leaderboard) {
+            const container = document.getElementById('leaderboard-list');
+            container.innerHTML = '';
+            
+            if (!leaderboard || leaderboard.length === 0) {
+                container.innerHTML = '<p class="text-center text-text-muted text-sm py-4">কোনো ডাটা নেই</p>';
+                return;
+            }
+            
+            leaderboard.forEach((user, index) => {
+                const item = document.createElement('div');
+                item.className = `leaderboard-item flex items-center gap-3 p-3 rounded-xl`;
+                
+                const rank = index + 1;
+                let rankBadge = '';
+                if (rank === 1) rankBadge = '🥇';
+                else if (rank === 2) rankBadge = '🥈';
+                else if (rank === 3) rankBadge = '🥉';
+                else rankBadge = rank;
+                
+                item.innerHTML = `
+                    <span class="w-8 h-8 flex items-center justify-center font-bold text-text">${rankBadge}</span>
+                    <div class="flex-1">
+                        <p class="font-semibold text-text text-sm">${user.name}</p>
+                        <p class="text-xs text-text-muted">${user.total_quiz_played || 0} কুইজ</p>
+                    </div>
+                    <span class="font-bold text-primary">${formatNumber(user.balance)}৳</span>
+                `;
+                
+                container.appendChild(item);
+            });
+        }
+        
+        // Withdraw Functions
+        async function loadWithdrawSettings() {
+            try {
+                const settings = await api('/api/settings').catch(() => null);
+                if (settings && settings.settings) {
+                    document.getElementById('min-withdraw').textContent = formatNumber(settings.settings.min_withdraw || 10);
+                    document.getElementById('withdraw-fee').textContent = formatNumber(settings.settings.withdraw_fee || 0);
+                    state.settings = settings.settings;
+                }
+            } catch (error) {
+                console.error('Load withdraw settings error:', error);
+            }
+        }
+        
+        function setupWithdraw() {
+            // Method selection
+            document.querySelectorAll('.withdraw-method-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.withdraw-method-btn').forEach(b => b.classList.remove('border-primary'));
+                    btn.classList.add('border-primary');
+                    state.selectedMethod = btn.dataset.method;
+                    validateWithdrawForm();
+                });
+            });
+            
+            // Form inputs
+            document.getElementById('withdraw-number').addEventListener('input', validateWithdrawForm);
+            document.getElementById('withdraw-amount').addEventListener('input', validateWithdrawForm);
+            
+            // Submit
+            document.getElementById('withdraw-submit-btn').addEventListener('click', submitWithdraw);
+        }
+        
+        function validateWithdrawForm() {
+            const number = document.getElementById('withdraw-number').value;
+            const amount = parseFloat(document.getElementById('withdraw-amount').value) || 0;
+            const minWithdraw = parseFloat(state.settings.min_withdraw) || 10;
+            
+            const isValid = state.selectedMethod && 
+                           number.length >= 11 && 
+                           amount >= minWithdraw;
+            
+            document.getElementById('withdraw-submit-btn').disabled = !isValid;
+        }
+        
+        async function submitWithdraw() {
+            const btn = document.getElementById('withdraw-submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'প্রসেসিং...';
+            
+            try {
+                const data = await api('/api/withdraw', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        method: state.selectedMethod,
+                        number: document.getElementById('withdraw-number').value,
+                        amount: parseFloat(document.getElementById('withdraw-amount').value)
+                    })
+                });
+                
+                if (data.success) {
+                    showToast('উইথড্র রিকুয়েস্ট সফল!', 'success');
+                    
+                    // Update balance
+                    state.user.balance = data.new_balance;
+                    updateUserUI();
+                    
+                    // Reset form
+                    document.getElementById('withdraw-number').value = '';
+                    document.getElementById('withdraw-amount').value = '';
+                    state.selectedMethod = null;
+                    document.querySelectorAll('.withdraw-method-btn').forEach(b => b.classList.remove('border-primary'));
+                }
+            } catch (error) {
+                console.error('Withdraw error:', error);
+                showToast(error.message || 'উইথড্র ব্যর্থ হয়েছে', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'উইথড্র রিকুয়েস্ট পাঠান';
+            }
+        }
+        
+        // Admin Functions
+        async function loadAdminData() {
+            if (!state.isAdmin) return;
+            
+            try {
+                // Stats
+                const stats = await api('/api/admin/stats');
+                if (stats.success) {
+                    document.getElementById('admin-total-users').textContent = stats.stats.total_users;
+                    document.getElementById('admin-total-balance').textContent = `${formatNumber(stats.stats.total_balance_distributed)}৳`;
+                    document.getElementById('admin-pending-withdraws').textContent = stats.stats.pending_withdraw_count;
+                    document.getElementById('admin-pending-amount').textContent = `${formatNumber(stats.stats.total_withdraw_pending)}৳`;
+                }
+                
+                // Users
+                const users = await api('/api/admin/users');
+                if (users.success) {
+                    renderAdminUsers(users.users);
+                }
+                
+                // Quizzes
+                const quizzes = await api('/api/admin/quizzes');
+                if (quizzes.success) {
+                    renderAdminQuizzes(quizzes.quizzes);
+                }
+                
+                // Withdraws
+                const withdraws = await api('/api/admin/withdraws');
+                if (withdraws.success) {
+                    renderAdminWithdraws(withdraws.withdraws);
+                }
+                
+                // Settings
+                const settings = await api('/api/settings');
+                if (settings.success) {
+                    renderAdminSettings(settings.settings);
+                }
+            } catch (error) {
+                console.error('Load admin data error:', error);
+            }
+        }
+        
+        function renderAdminUsers(users) {
+            const container = document.getElementById('admin-users-list');
+            container.innerHTML = '';
+            
+            users.slice(0, 20).forEach(user => {
+                const item = document.createElement('div');
+                item.className = `p-4 rounded-xl ${user.is_banned ? 'bg-error/10' : 'bg-surface-alt'}`;
+                item.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-semibold text-text">${user.name}</span>
+                        <span class="text-xs px-2 py-1 rounded-full ${user.is_banned ? 'bg-error text-white' : 'bg-success/20 text-success'}">${user.is_banned ? 'ব্যান' : 'সক্রিয়'}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-sm text-text-muted mb-3">
+                        <span>ID: ${user.id}</span>
+                        <span>${formatNumber(user.balance)}৳</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="flex-1 py-2 rounded-lg bg-primary text-white text-xs font-semibold btn-press admin-user-balance" data-id="${user.id}">ব্যালেন্স</button>
+                        <button class="flex-1 py-2 rounded-lg ${user.is_banned ? 'bg-success' : 'bg-error'} text-white text-xs font-semibold btn-press admin-user-ban" data-id="${user.id}" data-banned="${user.is_banned}">${user.is_banned ? 'আনব্যান' : 'ব্যান'}</button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+            
+            // Add event listeners
+            container.querySelectorAll('.admin-user-balance').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const amount = prompt('ব্যালেন্স পরিবর্তন (+ বা - দিয়ে):');
+                    if (amount) {
+                        try {
+                            await api(`/api/admin/user/${btn.dataset.id}/balance`, {
+                                method: 'POST',
+                                body: JSON.stringify({ amount: parseFloat(amount) })
+                            });
+                            showToast('ব্যালেন্স আপডেট হয়েছে', 'success');
+                            loadAdminData();
+                        } catch (error) {
+                            showToast('ব্যর্থ হয়েছে', 'error');
+                        }
+                    }
+                });
+            });
+            
+            container.querySelectorAll('.admin-user-ban').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    try {
+                        await api(`/api/admin/user/${btn.dataset.id}/ban`, {
+                            method: 'POST',
+                            body: JSON.stringify({ banned: btn.dataset.banned === '0' })
+                        });
+                        showToast(btn.dataset.banned === '0' ? 'ব্যান করা হয়েছে' : 'আনব্যান করা হয়েছে', 'success');
+                        loadAdminData();
+                    } catch (error) {
+                        showToast('ব্যর্থ হয়েছে', 'error');
+                    }
+                });
+            });
+        }
+        
+        function renderAdminQuizzes(quizzes) {
+            const container = document.getElementById('admin-quizzes-list');
+            container.innerHTML = '';
+            
+            quizzes.slice(0, 10).forEach(quiz => {
+                const item = document.createElement('div');
+                item.className = 'p-4 rounded-xl bg-surface-alt flex items-center justify-between';
+                item.innerHTML = `
+                    <div class="flex-1 truncate">
+                        <p class="font-medium text-text text-sm truncate">${quiz.question}</p>
+                        <p class="text-xs text-text-muted">রিওয়ার্ড: ${formatNumber(quiz.reward)}৳</p>
+                    </div>
+                    <button class="px-3 py-2 rounded-lg bg-error text-white text-xs font-semibold btn-press admin-delete-quiz" data-id="${quiz.id}">মুছুন</button>
+                `;
+                container.appendChild(item);
+            });
+            
+            // Delete event
+            container.querySelectorAll('.admin-delete-quiz').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (confirm('এই কুইজ মুছে ফেলতে চান?')) {
+                        try {
+                            await api(`/api/admin/quiz/${btn.dataset.id}`, { method: 'DELETE' });
+                            showToast('কুইজ মুছে ফেলা হয়েছে', 'success');
+                            loadAdminData();
+                        } catch (error) {
+                            showToast('ব্যর্থ হয়েছে', 'error');
+                        }
+                    }
+                });
+            });
+        }
+        
+        function renderAdminWithdraws(withdraws) {
+            const container = document.getElementById('admin-withdraws-list');
+            container.innerHTML = '';
+            
+            withdraws.slice(0, 20).forEach(w => {
+                const item = document.createElement('div');
+                item.className = `p-4 rounded-xl ${w.status === 'pending' ? 'bg-warning/10' : w.status === 'approved' ? 'bg-success/10' : 'bg-error/10'}`;
+                item.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-semibold text-text">ID: ${w.user_id}</span>
+                        <span class="text-xs px-2 py-1 rounded-full ${w.status === 'pending' ? 'bg-warning text-white' : w.status === 'approved' ? 'bg-success text-white' : 'bg-error text-white'}">${w.status}</span>
+                    </div>
+                    <div class="text-sm text-text-muted mb-3">
+                        <p>${w.method}: ${w.number}</p>
+                        <p>এমাউন্ট: ${formatNumber(w.amount)}৳ | ফি: ${formatNumber(w.fee)}৳</p>
+                    </div>
+                    ${w.status === 'pending' ? `
+                        <div class="flex gap-2">
+                            <button class="flex-1 py-2 rounded-lg bg-success text-white text-xs font-semibold btn-press admin-process-withdraw" data-id="${w.id}" data-status="approved">অনুমোদন</button>
+                            <button class="flex-1 py-2 rounded-lg bg-error text-white text-xs font-semibold btn-press admin-process-withdraw" data-id="${w.id}" data-status="rejected">প্রত্যাখ্যান</button>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(item);
+            });
+            
+            // Process events
+            container.querySelectorAll('.admin-process-withdraw').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    try {
+                        await api(`/api/admin/withdraw/${btn.dataset.id}/process`, {
+                            method: 'POST',
+                            body: JSON.stringify({ status: btn.dataset.status })
+                        });
+                        showToast('উইথড্র প্রসেস করা হয়েছে', 'success');
+                        loadAdminData();
+                    } catch (error) {
+                        showToast('ব্যর্থ হয়েছে', 'error');
+                    }
+                });
+            });
+        }
+        
+        function renderAdminSettings(settings) {
+            if (!settings) return;
+            
+            document.getElementById('setting-min-withdraw').value = settings.min_withdraw || 10;
+            document.getElementById('setting-withdraw-fee').value = settings.withdraw_fee || 0;
+            document.getElementById('setting-referral-bonus').value = settings.referral_bonus || 5;
+            document.getElementById('setting-quiz-reward').value = settings.quiz_reward || 1;
+            document.getElementById('setting-quiz-timer').value = settings.quiz_timer || 15;
+            document.getElementById('setting-quiz-enabled').checked = settings.quiz_enabled !== '0';
+            document.getElementById('setting-withdraw-enabled').checked = settings.withdraw_enabled !== '0';
+            document.getElementById('setting-ads-enabled').checked = settings.ads_enabled !== '0';
+        }
+        
+        function setupAdmin() {
+            // Tab switching
+            document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.admin-tab-btn').forEach(b => {
+                        b.classList.remove('bg-primary', 'text-white');
+                        b.classList.add('bg-surface-alt', 'text-text-muted');
+                    });
+                    btn.classList.remove('bg-surface-alt', 'text-text-muted');
+                    btn.classList.add('bg-primary', 'text-white');
+                    
+                    document.querySelectorAll('.admin-tab-content').forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`admin-${btn.dataset.tab}`).classList.remove('hidden');
+                });
+            });
+            
+            // Add quiz
+            document.getElementById('add-quiz-btn').addEventListener('click', async () => {
+                const question = document.getElementById('new-quiz-question').value.trim();
+                const opt1 = document.getElementById('new-quiz-opt1').value.trim();
+                const opt2 = document.getElementById('new-quiz-opt2').value.trim();
+                const opt3 = document.getElementById('new-quiz-opt3').value.trim();
+                const opt4 = document.getElementById('new-quiz-opt4').value.trim();
+                const correct = parseInt(document.getElementById('new-quiz-correct').value);
+                const reward = parseFloat(document.getElementById('new-quiz-reward').value) || 1;
+                
+                if (!question || !opt1 || !opt2 || !opt3 || !opt4) {
+                    showToast('সব ফিল্ড পূরণ করুন', 'error');
+                    return;
+                }
+                
+                try {
+                    await api('/api/admin/quiz', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            question,
+                            option1: opt1,
+                            option2: opt2,
+                            option3: opt3,
+                            option4: opt4,
+                            correct_option: correct,
+                            reward
+                        })
+                    });
+                    
+                    showToast('কুইজ যোগ হয়েছে', 'success');
+                    
+                    // Clear form
+                    document.getElementById('new-quiz-question').value = '';
+                    document.getElementById('new-quiz-opt1').value = '';
+                    document.getElementById('new-quiz-opt2').value = '';
+                    document.getElementById('new-quiz-opt3').value = '';
+                    document.getElementById('new-quiz-opt4').value = '';
+                    
+                    loadAdminData();
+                } catch (error) {
+                    showToast('ব্যর্থ হয়েছে', 'error');
+                }
+            });
+            
+            // Save settings
+            document.getElementById('save-settings-btn').addEventListener('click', async () => {
+                try {
+                    await api('/api/settings', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            min_withdraw: document.getElementById('setting-min-withdraw').value,
+                            withdraw_fee: document.getElementById('setting-withdraw-fee').value,
+                            referral_bonus: document.getElementById('setting-referral-bonus').value,
+                            quiz_reward: document.getElementById('setting-quiz-reward').value,
+                            quiz_timer: document.getElementById('setting-quiz-timer').value,
+                            quiz_enabled: document.getElementById('setting-quiz-enabled').checked ? '1' : '0',
+                            withdraw_enabled: document.getElementById('setting-withdraw-enabled').checked ? '1' : '0',
+                            ads_enabled: document.getElementById('setting-ads-enabled').checked ? '1' : '0'
+                        })
+                    });
+                    
+                    showToast('সেটিংস সংরক্ষিত', 'success');
+                } catch (error) {
+                    showToast('ব্যর্থ হয়েছে', 'error');
+                }
+            });
+        }
+        
+        // Event Listeners
+        function setupEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const screen = item.dataset.screen;
+                    showScreen(screen);
+                    
+                    if (screen === 'profile') {
+                        loadProfile();
+                    } else if (screen === 'withdraw') {
+                        loadWithdrawSettings();
+                    } else if (screen === 'admin') {
+                        loadAdminData();
+                    } else if (screen === 'home') {
+                        loadQuiz();
+                    }
+                });
+            });
+            
+            // Result modal close
+            document.getElementById('result-close-btn').addEventListener('click', () => {
+                elements.resultModal.classList.add('hidden');
+                loadQuiz();
+            });
+            
+            // Copy referral link
+            document.getElementById('copy-referral-btn').addEventListener('click', () => {
+                const link = document.getElementById('referral-link').value;
+                navigator.clipboard.writeText(link).then(() => {
+                    showToast('লিংক কপি হয়েছে!', 'success');
+                });
+            });
+        }
+        
+        // Initialize
+        async function init() {
+            setupEventListeners();
+            setupWithdraw();
+            setupAdmin();
+            
+            await loadUser();
+        }
+        
+        // Start app
+        init();
+    </script>
+</body>
+</html>
