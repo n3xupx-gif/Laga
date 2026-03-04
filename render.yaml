@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: quiz-earn-bot
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python main.py"
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: WEBAPP_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.10.0
